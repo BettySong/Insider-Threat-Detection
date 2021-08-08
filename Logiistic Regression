@@ -1,0 +1,79 @@
+# -*- coding: UTF-8 -*-
+import pandas as pd
+import numpy as np
+import datetime
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn import tree
+from sklearn.metrics import confusion_matrix
+
+
+data = pd.read_csv('created_data.csv')
+# feature selection
+data['hour'] = data.date_Time.apply(lambda x: int(str(x)[11:13]))
+# print(data.hour.value_counts())
+
+hour_feature = pd.get_dummies(data.hour,prefix='hour')
+
+
+acc_feature = pd.get_dummies(data.accesses,prefix='accesses')
+
+feature = pd.concat([hour_feature,acc_feature,data['label'],data['thread']],axis=1)
+#print(feature.info())
+
+pd.concat([data,feature],axis=1).to_csv('created_data_all.csv',index=False)
+
+# pre-processing
+X_train, X_test, Y_train, Y_test = train_test_split(feature.iloc[:,:-1], feature.iloc[:,-1], test_size=0.3, random_state=0)
+
+
+def logistic():
+    logreg = LogisticRegression(C=1e5)
+    logreg.fit(X_train,Y_train)
+
+    pred = logreg.predict_proba(X_test)[0]
+    pred[pred>=0.5]=1
+    pred[pred<0.5]=0
+
+    acc = logreg.score(X_test,Y_test)
+    print(acc)
+
+
+def decisiontree():
+    from sklearn.tree import DecisionTreeClassifier
+    cls = DecisionTreeClassifier()
+    cls.fit(X_train, Y_train)
+
+    pred = cls.predict_proba(X_test)[0]
+    pred[pred >= 0.5] = 1
+    pred[pred < 0.5] = 0
+
+    acc = cls.score(X_test, Y_test)
+    print(acc)
+
+logistic()
+decisiontree()
+
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+from sklearn.tree import DecisionTreeClassifier
+
+logreg = LogisticRegression(C=1e5)
+scores = cross_val_score(logreg, feature.iloc[:,:-1], feature.iloc[:,-1], cv=10)
+print('10 flod validation score LG:',np.mean(scores))
+
+cls = DecisionTreeClassifier()
+cls.fit(X_train, Y_train)
+scores = cross_val_score(cls, feature.iloc[:,:-1], feature.iloc[:,-1], cv=10)
+print('10 flod validation score DT:',np.mean(scores))
+
+from xgboost import XGBClassifier
+from xgboost import plot_importance
+from matplotlib import pyplot
+
+# fit model no training data
+model = XGBClassifier()
+model.fit(feature.iloc[:,:-1], feature.iloc[:,-1])
+# plot feature importance
+plot_importance(model)
+pyplot.show()
