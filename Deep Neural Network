@@ -1,0 +1,81 @@
+# -*- coding: UTF-8 -*-
+import pandas as pd
+import numpy as np
+import datetime
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn import tree
+from sklearn.metrics import confusion_matrix
+
+
+data = pd.read_csv('created_data.csv')
+# feature selection
+data['hour'] = data.date_Time.apply(lambda x: int(str(x)[11:13]))
+# print(data.hour.value_counts())
+
+hour_feature = pd.get_dummies(data.hour,prefix='hour')
+
+
+acc_feature = pd.get_dummies(data.accesses,prefix='accesses')
+
+feature = pd.concat([hour_feature,acc_feature,data['label'],data['thread']],axis=1)
+#print(feature.info())
+
+pd.concat([data,feature],axis=1).to_csv('created_data_all.csv',index=False)
+
+# pre-processing
+X_train, X_test, Y_train, Y_test = train_test_split(feature.iloc[:,:-1], feature.iloc[:,-1], test_size=0.3, random_state=0)
+
+
+
+def dnn(X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test):
+    X_train, X_test, Y_train, Y_test = X_train.to_numpy(), X_test.to_numpy(), Y_train.to_numpy(), Y_test.to_numpy()
+    from keras.models import Sequential
+    from keras.layers import Dense
+    import keras
+    # create model
+    model = Sequential()
+    #model.add(keras.layers.BatchNormalization())
+    model.add(Dense(20, input_dim=28, init='uniform', activation='relu'))
+    #model.add(keras.layers.BatchNormalization())
+    model.add(Dense(16, init='uniform', activation='relu'))
+    model.add(Dense(10, init='uniform', activation='relu'))
+    model.add(Dense(8, init='uniform', activation='relu'))
+    model.add(Dense(4, init='uniform', activation='relu'))
+    model.add(Dense(2, init='uniform', activation='relu'))
+    #model.add(keras.layers.BatchNormalization())
+    # model.add(Dense(4, init='uniform', activation='relu'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(Dense(1, init='uniform', activation='sigmoid'))
+
+    # compile model
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
+
+    mc = keras.callbacks.ModelCheckpoint(
+        'logs',
+        monitor='val_acc',
+        verbose=0,
+        save_best_only=True,
+        save_weights_only=False,
+        mode='auto',
+        period=1
+    )
+
+    # Fit the model
+    history1 = model.fit(X_train, Y_train, validation_data=(X_test, Y_test), nb_epoch=100, batch_size=32,
+                         callbacks=[keras.callbacks.TensorBoard(log_dir='./log_dir')])
+
+    #print(history1)
+
+dnn()
+
+from xgboost import XGBClassifier
+from xgboost import plot_importance
+from matplotlib import pyplot
+
+# fit model no training data
+model = XGBClassifier()
+model.fit(feature.iloc[:,:-1], feature.iloc[:,-1])
+# plot feature importance
+plot_importance(model)
+pyplot.show()
