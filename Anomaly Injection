@@ -1,0 +1,66 @@
+# -*- coding: UTF-8 -*-
+import pandas as pd
+import numpy as np
+import datetime
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn import tree
+from sklearn.metrics import confusion_matrix
+
+'''
+data = pd.read_excel('4656.xlsx')
+data.drop(['Event ID', 'Security ID', 'Account Domain','Logon ID'],axis=1,inplace=True)
+data.columns = ['date_Time', 'account_Name', 'object_Name', 'accesses']
+
+abnormal = data[data.account_Name == 'Administrator\n']
+abnormal['thread'] = [0 if user.strip() in obj else 1 for user,obj in zip(abnormal.account_Name,abnormal.object_Name)]
+abnormal['label'] = 1
+
+data = data[data.account_Name != 'WIN-VTVVRQDJ9DR$\n']
+data = data[data.account_Name != 'Administrator\n']
+
+
+#user data
+# data['Account Name'] = data['Account Name'].apply(lambda x: extra_user[np.random.randint(3)] if x=='WIN-VTVVRQDJ9DR$\n' else x)
+extra_data = data[[True if x in ['user3\n', 'user5\n', 'user6\n'] else False for x in data.account_Name]]
+extra_user = ['user1\n', 'user2\n', 'user4\n']
+all_user = ['user1\n', 'user2\n', 'user4\n','user3\n', 'user5\n', 'user6\n']
+extra_data['account_Name'].apply(lambda x: extra_user[np.random.randint(3)])
+
+new_data = pd.concat([data, extra_data],axis=0)
+data = new_data.copy()
+the_day = 0
+
+# time data
+for i in range(110):
+    plus = new_data.copy()
+    rand = np.random.random()
+    rand_num = plus.sample(frac=rand).copy()
+    plus = pd.concat([plus, rand_num],axis=0)
+
+    rand_day = np.random.randint(3) #随机增加天数/随机增加时分秒
+    the_day += rand_day
+    plus.date_Time = plus.date_Time.apply(lambda x: x+datetime.timedelta(days=the_day, hours=np.random.randint(24),minutes=np.random.randint(60),seconds=np.random.randint(60)))
+    plus.account_Name = plus.account_Name.apply(lambda x: all_user[np.random.randint(6)])
+
+    data = pd.concat([data, plus],axis=0)
+data.reset_index(inplace=True)
+# print(data.date_Time.value_counts(),data.date_Time.max)
+
+
+# user operation outside its work folder，label=1
+data['thread'] = [0 if user.strip() in obj else 1 for user,obj in zip(data.account_Name,data.object_Name)]
+data['label'] = [0 if user.strip() in obj else 1 for user,obj in zip(data.account_Name,data.object_Name)]
+# print(data.info())
+
+# anomaly time, labe=1 (define work hours as 8:00-21:00)
+data.label = [1 if date.hour<8 or date.hour>21 else label for date,label in zip(data.date_Time,data.label)]
+
+
+# overall
+abnormal.account_Name = abnormal.account_Name.apply(lambda x: all_user[np.random.randint(6)])
+data = pd.concat([data, abnormal,],axis=0)
+# print(data.date_Time.value_counts())
+
+print(data.date_Time.apply(lambda x: int(str(x)[8:10])).value_counts())
+data.to_csv('created_data.csv',index=False)
